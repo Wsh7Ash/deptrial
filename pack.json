@@ -1,0 +1,208 @@
+{
+  "name": "deptrial",
+  "version": "1.0.0",
+  "category": "supply-chain",
+  "skill_count": 50,
+  "skills": [
+    {
+      "slug": "ci-cache-key-trust",
+      "sha256": "7ba327ce3001f3ce5063a84b6abb7106a433c850234b490ba7307184ecdf383b"
+    },
+    {
+      "slug": "ci-dependency-review-gate",
+      "sha256": "1838c7f9b388527ff9940e24704ce0969fdea743b3169c679fe72ed0300ca2d3"
+    },
+    {
+      "slug": "ci-pull-request-target",
+      "sha256": "27b4c886fd1082dc9608ef85848ace5f478df1acef63faa6311dea0f7f5073e8"
+    },
+    {
+      "slug": "ci-secret-exposure",
+      "sha256": "d4f1e54e729a1822e90e42e8b636ad9b59b27ea84ecd25ff3a66cf7e230e1a3d"
+    },
+    {
+      "slug": "ci-token-least-privilege",
+      "sha256": "3114ade942b70d283a1a2df31c19b10ede41b63607744fb8feaaf05be70e43a0"
+    },
+    {
+      "slug": "confusion-build-log-evidence",
+      "sha256": "8617b0170d86c493025f9cf0bb31b669fea536669a7e6cc884ab754b51743769"
+    },
+    {
+      "slug": "confusion-enumerate-internal-names",
+      "sha256": "7e7cb4e22349a71782dd2daccfa5ed2d8d1c9617a69195fedba194d82c9eb308"
+    },
+    {
+      "slug": "confusion-fix-verification",
+      "sha256": "fbd01ac8b7ee3fa530337440c3baeb1c62bb4546032b0b47983a9c82f38adb26"
+    },
+    {
+      "slug": "confusion-higher-version-wins",
+      "sha256": "51283a3c465e1d89fa2637ef36e248e63b9fd0bcd7c56c5595fe7850dc805c36"
+    },
+    {
+      "slug": "confusion-resolution-order",
+      "sha256": "5abb088373aeacd8432f956c26d43ba2dd9d47fda957bc3207305723e70921ab"
+    },
+    {
+      "slug": "confusion-scope-pinning",
+      "sha256": "0d0c34488e347f9dbb32a82050b43c2323efdd9d8bb7b7827eb89ff53503f024"
+    },
+    {
+      "slug": "pinning-exact-npm",
+      "sha256": "44dad59644e2d2e0cc3c7e6219524442fa74c8a84b75e51dc656437c364c61b0"
+    },
+    {
+      "slug": "pinning-lockfile-generate",
+      "sha256": "fa9b045fbf53b5360f6d8df736e85932cbcdab1f48539ba1f3eec92d508c475c"
+    },
+    {
+      "slug": "pinning-lockfile-integrity",
+      "sha256": "a91a53144a9d3ea00436503191159cbd65147676b41a64af0e19036b3b64a802"
+    },
+    {
+      "slug": "pinning-pip-upper-bound",
+      "sha256": "640de4b13ad5e11b56eec84a7cf17119d6c4508d3ae568649c52417d6952b498"
+    },
+    {
+      "slug": "pinning-replace-url-dependency",
+      "sha256": "4864f238f53491afdea88048494cc09ef133365be9a796232ab84d7b1e0822e9"
+    },
+    {
+      "slug": "pinning-update-review",
+      "sha256": "eea8302b4715ecf38974e842ef5bceb5287c252fa5c2f08f1f1a47316fa22011"
+    },
+    {
+      "slug": "provenance-attestation-check",
+      "sha256": "1b361ca8d7f6a6f2400dec155ecf252ece85901efee73935e35aa45cccd79a78"
+    },
+    {
+      "slug": "provenance-missing-attestation-triage",
+      "sha256": "b71ff4152d462c5a53e630d44f66982cadaaeaa2b18b5f727fd279ee51b58c54"
+    },
+    {
+      "slug": "provenance-reproduce-build",
+      "sha256": "0f36e768e544f8c40eb60706fb0752915a28f9c1540f62e5a5554729d2040b7d"
+    },
+    {
+      "slug": "provenance-source-tag-match",
+      "sha256": "89d0a5a54e2a0e8211677f0f59279c9d92aa92459299ba7c32526550e6fc2acd"
+    },
+    {
+      "slug": "provenance-verify-signature",
+      "sha256": "1e7089d7dad36f460fb5a112548675d6c026a1f1fbd6bec4860aeab86473b3d1"
+    },
+    {
+      "slug": "recon-ci-install-path",
+      "sha256": "3aa2dc6e13e239210be7342503ef1dd0935aeab9411f6e8f0208995817217efe"
+    },
+    {
+      "slug": "recon-dependency-graph",
+      "sha256": "c25a4dd355d511f1b1cb4fa28be38ddcf98d98269ac0a3fa564b78963e06834f"
+    },
+    {
+      "slug": "recon-manifest-inventory",
+      "sha256": "63d1c263f940965b6f47f2b334e1339115342ea589890ae5355c940d8ea94ff7"
+    },
+    {
+      "slug": "recon-private-scope-map",
+      "sha256": "3682cd26a394891742f11e95f0ddcaccda10c7628efbc1441fae75c4ae63e91c"
+    },
+    {
+      "slug": "recon-registry-metadata",
+      "sha256": "e5383f13c8e56c21097a29a98d68d8f076c180a8b9a2bed126d5647ed45be536"
+    },
+    {
+      "slug": "registry-maintainer-change",
+      "sha256": "e46bf6a5449ed56d9e47d744574ee350866315716f785840c74d5d83f4507d7d"
+    },
+    {
+      "slug": "registry-new-package-triage",
+      "sha256": "74de89b882dd630eff2f612197255e2547e1f199eb81afa5ae0459d50930702e"
+    },
+    {
+      "slug": "registry-scope-claim-check",
+      "sha256": "570e94206d04b38d66546df45cd9fe4caa139092811e8e6b1f1150afde085000"
+    },
+    {
+      "slug": "registry-tarball-source-diff",
+      "sha256": "ae3fce7fd9500373f4a708464dce1897b7e8a1c0969d60feb24988e26459973c"
+    },
+    {
+      "slug": "registry-yank-republish",
+      "sha256": "e0c6fac16b98d8342658c1793086f9c78eaa83b733143a64c1f0c73e80223ce6"
+    },
+    {
+      "slug": "review-disclosure-timeline",
+      "sha256": "8137c460460f8ac4851ce8f37ce485c38916d4b99eff0e9c71d9f96c5c4dbd7a"
+    },
+    {
+      "slug": "review-finding-evidence",
+      "sha256": "615a73d1c47fedaba841f5108a49144512ff7e49682cb41a56ff9e9d6db511a5"
+    },
+    {
+      "slug": "review-fix-verification",
+      "sha256": "db8e3bb43c6aff3fd164d1a3b6d98d071a0e8168388e23de5fcbff39be83221f"
+    },
+    {
+      "slug": "review-severity-basis",
+      "sha256": "614a5371ce98760102c33f3f0556603b8a35392d251bc31cf32f12744c878bd1"
+    },
+    {
+      "slug": "scripts-allowlist-policy",
+      "sha256": "ec04d0cf87dc1a30dbf1f490e0247be6cc9cb4362cf8312ab0918ae450050469"
+    },
+    {
+      "slug": "scripts-behaviour-diff",
+      "sha256": "66c19fc80c4ce4124fd2413737173f284400bf2b46e0d383840b01c957e94e1c"
+    },
+    {
+      "slug": "scripts-ci-enforcement",
+      "sha256": "764ab1894d6f2c36585f2a7a36cab1479af05fe8d28ddaf746b6d93fdf9f2511"
+    },
+    {
+      "slug": "scripts-inventory-hooks",
+      "sha256": "e8a7ba7417db3c683642d1cc909b249cdb6b5b5d45c10429b0b07381dfdba46d"
+    },
+    {
+      "slug": "scripts-sandbox-install",
+      "sha256": "4424beccd371098fb12b293ac0f70a9371d79feff91280997695d1c94d1c91cf"
+    },
+    {
+      "slug": "tools-origin-and-licence-check",
+      "sha256": "6bb39fece612d70778c61d44129a56b2c2786e68712f3ab76eab0c6cfa38d900"
+    },
+    {
+      "slug": "tools-run-manifest-scan",
+      "sha256": "38c2d03287d89babd4955c2035f26801c4de15a252005aaac240ebb572850694"
+    },
+    {
+      "slug": "tools-sbom-generate",
+      "sha256": "c322528726df8b59d88c1c20d9f74748d7fe9d2cd90a9f5a9dbacced732087ef"
+    },
+    {
+      "slug": "tools-suppression-with-reason",
+      "sha256": "d05c014a60b0cf9d0c76b38b49db6dae907cd625fc3ff752aa6fd9cb48f384f0"
+    },
+    {
+      "slug": "typosquat-edit-distance-scan",
+      "sha256": "69b34714656c6fa22e0ec3443e3e085fdbc092f19c21edf9f96ec31968233b30"
+    },
+    {
+      "slug": "typosquat-homoglyph-check",
+      "sha256": "86326384cc383692dbb16aa108fd0fb8e20065a328d8584324e554996677970d"
+    },
+    {
+      "slug": "typosquat-keyboard-adjacent",
+      "sha256": "0e9599d3054ea6aa758bb780f1cef697d69eb2f11b2259840f6c46573782d0d6"
+    },
+    {
+      "slug": "typosquat-repo-wide-scan",
+      "sha256": "0b0cbf76502fcdbffa20774cad68a181da1f6f4baaf122a292e5568633778b53"
+    },
+    {
+      "slug": "typosquat-suspicious-package-triage",
+      "sha256": "f4cb1b79d465ea13267f8a84d4d20977380c17886da96a0305d21ea95167c3e0"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+$ python -m deptrial validate
+50/50 skills valid
+
+$ python -m deptrial list --phase confusion
+confusion-build-log-evidence       confusion    Capture resolver evidence from a real build
+confusion-enumerate-internal-names confusion    Enumerate the internal names that are resolvable publicly
+confusion-fix-verification         confusion    Verify the confusion fix after it ships
+confusion-higher-version-wins      confusion    Show that a higher public version outranks the private one
+confusion-resolution-order         confusion    Prove which registry wins for one name
+confusion-scope-pinning            confusion    Pin a private scope to one registry
+6 skill(s)
+
+$ python -m deptrial scan examples/vulnerable --internal-prefix @acme/ --allowlist express --allowlist lodash --allowlist react --fail-on high
+high   DT002 express: dependency is fetched from a vcs source, not the registry
+       evidence: github:expressjs/express#main
+       manifest: package.json
+high   DT002 internal-utils: dependency is fetched from a vcs source, not the registry
+       evidence: git+https://github.com/acme/internal-utils@main
+       manifest: requirements.txt
+high   DT002 sharp: dependency is fetched from a url source, not the registry
+       evidence: https://example.invalid/sharp-0.33.tgz
+       manifest: package.json
+high   DT003 postinstall: `postinstall` runs during install, so its content executes before review
+       evidence: node ./scripts/patch-runtime.js
+       manifest: package.json
+high   DT003 preinstall: `preinstall` runs during install, so its content executes before review
+       evidence: node ./scripts/fetch-fonts.js
+       manifest: package.json
+high   DT004 @acme/design-tokens: internal name is resolved from the public registry without an exact pin
+       evidence: @acme/design-tokens@>=1.0.0
+       manifest: package.json
+high   DT005 expres: name is 1 edit(s) from trusted `express`
+       evidence: expres ~ express
+       manifest: package.json
+medium DT001 @acme/design-tokens: version range floats, so a new upstream release is installed without review
+       evidence: @acme/design-tokens@>=1.0.0
+       manifest: package.json
+medium DT001 acme-analytics: version range floats, so a new upstream release is installed without review
+       evidence: acme-analytics@^0.3.0
+       manifest: package.json
+medium DT001 jest: version range floats, so a new upstream release is installed without review
+       evidence: jest@~29.7.0
+       manifest: package.json
+medium DT001 lodash: version range floats, so a new upstream release is installed without review
+       evidence: lodash@^4.17.21
+       manifest: package.json
+medium DT006 lockfile: no lockfile accompanies the manifests, so installs are not reproducible
+       evidence: 14 declared dependencies
+       manifest: package.json, requirements.txt
+medium DT007 flask: constraint is a wildcard, so any published version satisfies it
+       evidence: flask@<empty>
+       manifest: requirements.txt
+medium DT007 left-pad: constraint is a wildcard, so any published version satisfies it
+       evidence: left-pad@*
+       manifest: package.json
+medium DT008 requests: lower bound only, so any future major version is accepted
+       evidence: requests>=2.28
+       manifest: requirements.txt
+14 dependencies, 15 findings [high 7, medium 8, low 0]
+(exit 1)
+
+$ python -m deptrial scan examples/hardened --fail-on high
+3 dependencies, 0 findings [high 0, medium 0, low 0]
+(exit 0)
+
+$ python -m deptrial rules | head -3
+DT001 medium npm range floats (^, ~, || or an operator without an upper bound)
+DT002 high   dependency fetched from a vcs, url or local source
+DT003 high   lifecycle hook runs during install

@@ -1,0 +1,5 @@
+# runtime
+requests>=2.28
+flask
+git+https://github.com/acme/internal-utils@main#egg=internal-utils
+numpy==1.26.4

@@ -1,0 +1,23 @@
+{
+  "name": "checkout-web",
+  "version": "2.4.0",
+  "scripts": {
+    "preinstall": "node ./scripts/fetch-fonts.js",
+    "postinstall": "node ./scripts/patch-runtime.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "react": "18.3.1",
+    "expres": "1.4.2",
+    "@acme/design-tokens": ">=1.0.0",
+    "left-pad": "*",
+    "acme-analytics": "^0.3.0",
+    "internal-billing-client": "1.2.0",
+    "express": "github:expressjs/express#main",
+    "sharp": "https://example.invalid/sharp-0.33.tgz"
+  },
+  "devDependencies": {
+    "jest": "~29.7.0"
+  }
+}
