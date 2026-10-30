@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `DT006` and `DT009` now evaluate per **install root** rather than once per scan.
+  A root is the nearest directory at or above a manifest holding a version-control
+  marker or a lockfile, falling back to the scanned tree. Measured on a 146-manifest
+  workspace: `DT009` 11 findings -> 0 (all were cross-project), `DT006` 0 -> 132
+  (the rule had been silenced by one lockfile anywhere in the tree).
+- `Dependency` carries a `root` field, and `Inventory` exposes `roots`, `locked_roots`,
+  `unlocked_roots()` and `dependencies_in(root)`.
+- Installation roots are a filesystem heuristic: a tree with no marker files is treated
+  as one project, which is documented in the README's limits.
+
 ## [1.0.0] - 2026-10-30
 
 ### Added

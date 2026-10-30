@@ -47,10 +47,10 @@ RULE_SUMMARY = {
     "DT003": ("high", "lifecycle hook runs during install"),
     "DT004": ("high", "internal name resolved from the public registry without an exact pin"),
     "DT005": ("high", "declared name is within edit distance of a trusted name"),
-    "DT006": ("medium", "manifests without a lockfile"),
+    "DT006": ("medium", "an install root whose manifests have no lockfile"),
     "DT007": ("medium", "wildcard constraint (empty, *, latest, x)"),
     "DT008": ("medium", "pip lower bound with no upper bound"),
-    "DT009": ("low", "same package declared differently in two manifests"),
+    "DT009": ("low", "same package declared differently inside one install root"),
     "DT010": ("medium", "lockfile entries without integrity data"),
 }
 

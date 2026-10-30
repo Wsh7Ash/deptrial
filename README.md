@@ -38,15 +38,29 @@ $ echo $?
 | `DT003` | high | a lifecycle hook runs during install (`preinstall`, `install`, `postinstall`, `prepare`, `prepublish`, `prepack`) |
 | `DT004` | high | an internal name is resolved from the public registry without an exact pin |
 | `DT005` | high | a declared name is within edit distance of a trusted name |
-| `DT006` | medium | manifests with no lockfile |
+| `DT006` | medium | an install root whose manifests have no lockfile |
 | `DT007` | medium | wildcard constraint: empty, `*`, `latest`, `x` |
 | `DT008` | medium | pip lower bound with no upper bound |
-| `DT009` | low | the same package declared with different constraints in two manifests |
+| `DT009` | low | the same package declared with different constraints inside one install root |
 | `DT010` | medium | lockfile entries without integrity data |
 
 Severity is about what an attacker gains, not about how unusual a pattern is: `high` means a third party can choose the code that runs in your build, `medium` means the dependency set can change under you, `low` is hygiene that makes the other findings harder to reason about.
 
 Exit codes make it a gate: `0` when nothing reaches `--fail-on`, `1` when findings at or above it exist, `2` on a usage error.
+
+### Install roots
+
+A scan of a directory of projects is not one project. `pytest>=8` in two unrelated repositories is not a conflict, and a lockfile in one repository does not make another's installs reproducible. Two rules therefore work per **install root**: the nearest directory at or above a manifest that holds a version-control marker (`.git`, `.hg`, `.svn`) or a lockfile, with the scanned tree itself as the fallback when no such marker exists.
+
+```
+projects/                      scanned tree (fallback root)
+  2026-09-20/regex-track/      has .git and package-lock.json -> its own root
+  2026-10-30/deptrial/         has .git, no lockfile         -> DT006 here
+    examples/hardened/         has package-lock.json         -> its own root
+    examples/vulnerable/       no marker, inside deptrial    -> deptrial's root
+```
+
+The nearest marker wins rather than the outermost, so a package that ships its own lockfile inside a repository is its own root. The effect on this workspace: `DT009` fell from 11 findings to 0 (all 11 were cross-project), and `DT006` went from 0 to 132 — the rule had been silenced by a single lockfile anywhere in the tree.
 
 ## Why this pack exists
 
@@ -160,6 +174,9 @@ tests/           91 tests: corpus rules, artifact drift, parsers, classifiers, r
 - The hardened example produces zero findings; the vulnerable one produces seven high.
 - Discovery ignores `node_modules`; a missing target raises rather than returning an empty report.
 - `scan` exits 1 above the threshold, 0 below it, and 2 for a bad threshold, bad distance or missing path.
+- Two repositories with different constraints for one package produce no `DT009`; one repository with a nested package that disagrees does.
+- A repository with a root lockfile covers a nested package; a nested package with its own lockfile is its own root.
+- `DT006` fires once per unlocked install root, and a locked root produces none.
 
 ## Limits
 
@@ -168,6 +185,7 @@ tests/           91 tests: corpus rules, artifact drift, parsers, classifiers, r
 - **`pyproject.toml` needs Python 3.11+** for `tomllib`; on 3.10 that parser returns nothing and the other formats still work.
 - **Lockfile integrity counting is per format and approximate** for `yarn.lock` and `pnpm-lock.yaml`, where it counts markers rather than parsed entries.
 - **`DT005` is only as good as the allowlist.** An empty allowlist disables the rule, and a stale allowlist misses renames.
+- **Install-root detection is a filesystem heuristic.** A tree with no `.git` and no lockfile is treated as one project, so constraints in two unrelated directories of such a tree will be reported as a conflict. Marker files are the only evidence available without configuration.
 - **No skill here publishes anything.** Every check is read-only against registries in the sense that it fetches metadata or tarballs; no skill tells you to claim a public name.
 - **The examples are fixtures, not live scans.** `example.invalid` is a reserved domain; the git URLs are not fetched by anything in this repository.
 

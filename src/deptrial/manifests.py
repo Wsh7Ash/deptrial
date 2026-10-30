@@ -78,6 +78,8 @@ class Dependency:
     source: str
     binding: str
     manifest: str
+    # The install root this declaration belongs to; see :func:`install_root`.
+    root: str = ""
 
     @property
     def ecosystem(self) -> str:
@@ -90,6 +92,7 @@ class Dependency:
             "source": self.source,
             "binding": self.binding,
             "manifest": self.manifest,
+            "root": self.root,
             "ecosystem": self.ecosystem,
         }
 
@@ -104,9 +107,24 @@ class Inventory:
     lockfiles: list[str] = field(default_factory=list)
     integrity_entries: int = 0
     locked_entries: int = 0
+    # Install root -> the manifests that live in it.
+    roots: dict[str, list[str]] = field(default_factory=dict)
+    # Install roots that hold at least one lockfile.
+    locked_roots: set[str] = field(default_factory=set)
 
     def sorted_dependencies(self) -> list[Dependency]:
-        return sorted(self.dependencies, key=lambda d: (d.manifest, d.name, d.constraint))
+        return sorted(self.dependencies, key=lambda d: (d.root, d.manifest, d.name, d.constraint))
+
+    def unlocked_roots(self) -> list[tuple[str, list[str]]]:
+        """Roots that declare dependencies but hold no lockfile, in path order."""
+        return sorted(
+            (root, sorted(manifests))
+            for root, manifests in self.roots.items()
+            if root not in self.locked_roots
+        )
+
+    def dependencies_in(self, root: str) -> list[Dependency]:
+        return [d for d in self.dependencies if d.root == root]
 
 
 def classify_source(spec: str) -> str:
@@ -152,7 +170,50 @@ def classify_binding(constraint: str, ecosystem: str = "npm") -> str:
     return BINDING_FLOATING
 
 
-def _dependency(name: str, constraint: str, manifest: str, ecosystem: str) -> Dependency:
+VCS_MARKERS = (".git", ".hg", ".svn")
+
+
+def _relative(path: Path, base: Path) -> str:
+    if path == base:
+        return "."
+    try:
+        return str(path.relative_to(base))
+    except ValueError:
+        return str(path)
+
+
+def install_root(manifest: Path, base: Path) -> str:
+    """Return the install root a manifest belongs to.
+
+    A whole-tree scan is not one project: `pytest>=8` in two unrelated
+    repositories is not a conflict, and a lockfile in one repository does not
+    cover another. The boundary is the nearest directory at or above the
+    manifest that holds a version-control marker or a lockfile.
+
+    The nearest marker wins rather than the outermost, so a package with its own
+    lockfile inside a repository is its own install root. With no marker
+    anywhere, the scanned tree itself is the root — guessing a boundary where
+    the filesystem gives no evidence would be worse than treating the tree as
+    one project and saying so.
+    """
+    directory = manifest.parent
+    while True:
+        markers = (*VCS_MARKERS, *LOCKFILE_NAMES)
+        if any((directory / name).exists() for name in markers):
+            return _relative(directory, base)
+        if directory == base or directory.parent == directory:
+            break
+        directory = directory.parent
+    return "."
+
+
+def _dependency(
+    name: str,
+    constraint: str,
+    manifest: str,
+    ecosystem: str,
+    root: str = "",
+) -> Dependency:
     spec = constraint.strip()
     source = classify_source(spec)
     binding = classify_binding(spec, ecosystem) if source == SOURCE_REGISTRY else BINDING_EXACT
@@ -162,10 +223,15 @@ def _dependency(name: str, constraint: str, manifest: str, ecosystem: str) -> De
         source=source,
         binding=binding,
         manifest=manifest,
+        root=root,
     )
 
 
-def parse_package_json(path: Path, display: str | None = None) -> tuple[list[Dependency], dict[str, str]]:
+def parse_package_json(
+    path: Path,
+    display: str | None = None,
+    root: str = "",
+) -> tuple[list[Dependency], dict[str, str]]:
     """Return dependencies and lifecycle scripts from a ``package.json``."""
     label = display or str(path)
     data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
@@ -175,7 +241,7 @@ def parse_package_json(path: Path, display: str | None = None) -> tuple[list[Dep
         if not isinstance(block, dict):
             continue
         for name, constraint in block.items():
-            dependencies.append(_dependency(name, str(constraint), label, "npm"))
+            dependencies.append(_dependency(name, str(constraint), label, "npm", root))
     scripts = {
         str(key): str(value)
         for key, value in (data.get("scripts") or {}).items()
@@ -184,7 +250,7 @@ def parse_package_json(path: Path, display: str | None = None) -> tuple[list[Dep
     return dependencies, scripts
 
 
-def parse_requirements(path: Path, display: str | None = None) -> list[Dependency]:
+def parse_requirements(path: Path, display: str | None = None, root: str = "") -> list[Dependency]:
     """Return dependencies from a pip requirements file."""
     label = display or str(path)
     dependencies: list[Dependency] = []
@@ -193,13 +259,13 @@ def parse_requirements(path: Path, display: str | None = None) -> list[Dependenc
         if not line or line.startswith("-"):
             continue
         if line.startswith(("git+", "http://", "https://")):
-            dependencies.append(_dependency(_vcs_name(line), line, label, "pip"))
+            dependencies.append(_dependency(_vcs_name(line), line, label, "pip", root))
             continue
         match = re.match(r"^([A-Za-z0-9_.\-\[\]]+)\s*(.*)$", line)
         if not match:
             continue
         name, constraint = match.group(1), match.group(2).strip()
-        dependencies.append(_dependency(name, constraint, label, "pip"))
+        dependencies.append(_dependency(name, constraint, label, "pip", root))
     return dependencies
 
 
@@ -217,7 +283,7 @@ def _vcs_name(line: str) -> str:
     return tail[:-4] if tail.endswith(".git") else tail
 
 
-def parse_pyproject(path: Path, display: str | None = None) -> list[Dependency]:
+def parse_pyproject(path: Path, display: str | None = None, root: str = "") -> list[Dependency]:
     """Return dependencies from a PEP 621 ``pyproject.toml``."""
     label = display or str(path)
     if tomllib is None:  # pragma: no cover - 3.10 fallback
@@ -233,7 +299,7 @@ def parse_pyproject(path: Path, display: str | None = None) -> list[Dependency]:
         if not match:
             continue
         name, _, constraint = match.groups()
-        dependencies.append(_dependency(name, constraint or "", label, "pip"))
+        dependencies.append(_dependency(name, constraint or "", label, "pip", root))
     return dependencies
 
 
@@ -274,20 +340,23 @@ def discover(root: str | Path, max_depth: int = 4) -> Inventory:
 
     for path in candidates:
         display = str(path.relative_to(base)) if base.is_dir() else path.name
+        root = install_root(path, base if base.is_dir() else path.parent)
         if path.name in LOCKFILE_NAMES:
             inventory.lockfiles.append(display)
+            inventory.locked_roots.add(root)
             _count_lockfile(path, inventory)
             continue
         if path.name == "package.json":
-            dependencies, scripts = parse_package_json(path, display)
+            dependencies, scripts = parse_package_json(path, display, root)
             inventory.dependencies.extend(dependencies)
             for key, command in scripts.items():
                 inventory.scripts[f"{display}:{key}"] = command
         elif path.name in {"requirements.txt", "requirements-dev.txt"}:
-            inventory.dependencies.extend(parse_requirements(path, display))
+            inventory.dependencies.extend(parse_requirements(path, display, root))
         elif path.name == "pyproject.toml":
-            inventory.dependencies.extend(parse_pyproject(path, display))
+            inventory.dependencies.extend(parse_pyproject(path, display, root))
         inventory.manifests.append(display)
+        inventory.roots.setdefault(root, []).append(display)
 
     return inventory
 
@@ -342,6 +411,7 @@ __all__ = [
     "classify_binding",
     "classify_source",
     "discover",
+    "install_root",
     "parse_package_json",
     "parse_pyproject",
     "parse_requirements",

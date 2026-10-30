@@ -27,6 +27,7 @@ from deptrial.manifests import (
     classify_binding,
     classify_source,
     discover,
+    install_root,
     parse_package_json,
     parse_pyproject,
     parse_requirements,
@@ -308,6 +309,141 @@ def test_cross_manifest_conflict_is_detected(tmp_path: Path) -> None:
     assert len(conflicts) == 1
     assert conflicts[0].subject == "left-pad"
     assert conflicts[0].severity == "low"
+
+
+# --------------------------------------------------------------- install roots
+
+
+def make_repo(path: Path, name: str = "repo") -> Path:
+    """Create a directory that looks like a repository root."""
+    path.mkdir(parents=True, exist_ok=True)
+    (path / ".git").mkdir(exist_ok=True)
+    return path
+
+
+def npm(path: Path, deps: dict[str, str], name: str = "pkg") -> None:
+    (path / "package.json").write_text(
+        json.dumps({"name": name, "dependencies": deps}), encoding="utf-8"
+    )
+
+
+def lockfile(path: Path) -> None:
+    (path / "package-lock.json").write_text(
+        json.dumps({"lockfileVersion": 3, "packages": {"node_modules/a": {"version": "1.0.0", "integrity": "sha512-x"}}}),
+        encoding="utf-8",
+    )
+
+
+def test_install_root_is_the_nearest_marker(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    nested = repo / "service"
+    nested.mkdir()
+    assert install_root(repo / "package.json", tmp_path) == "repo"
+    assert install_root(nested / "package.json", tmp_path) == "repo"
+
+
+def test_install_root_prefers_a_closer_lockfile(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    nested = repo / "service"
+    nested.mkdir()
+    lockfile(nested)
+    assert install_root(nested / "package.json", tmp_path) == "repo/service"
+
+
+def test_install_root_falls_back_to_the_scan_root(tmp_path: Path) -> None:
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    (plain / "pyproject.toml").write_text('[project]\nname = "x"\n', encoding="utf-8")
+    assert install_root(plain / "pyproject.toml", tmp_path) == "."
+
+
+def test_conflict_across_two_repositories_is_not_reported(tmp_path: Path) -> None:
+    first = make_repo(tmp_path / "alpha")
+    second = make_repo(tmp_path / "beta")
+    npm(first, {"lodash": "4.17.21"})
+    npm(second, {"lodash": "^4.0.0"}, "beta")
+    report = scan(discover(tmp_path), Options())
+    assert [f for f in report.findings if f.rule == "DT009"] == []
+
+
+def test_conflict_inside_one_repository_is_reported(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "monorepo")
+    npm(repo, {"left-pad": "1.3.0"})
+    service = repo / "service"
+    service.mkdir()
+    npm(service, {"left-pad": "^1.2.0"}, "service")
+    report = scan(discover(tmp_path), Options())
+    conflicts = [f for f in report.findings if f.rule == "DT009"]
+    assert len(conflicts) == 1
+    assert conflicts[0].manifest == "monorepo"
+    assert "inside one install root" in conflicts[0].message
+
+
+def test_a_nested_repository_boundary_stops_the_conflict(tmp_path: Path) -> None:
+    outer = make_repo(tmp_path / "outer")
+    npm(outer, {"left-pad": "1.3.0"})
+    inner = make_repo(outer / "vendor")
+    npm(inner, {"left-pad": "^1.2.0"}, "inner")
+    report = scan(discover(tmp_path), Options())
+    assert [f for f in report.findings if f.rule == "DT009"] == []
+
+
+def test_conflict_inside_a_single_manifest_is_reported(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "package.json").write_text(
+        json.dumps(
+            {"name": "x", "dependencies": {"lodash": "4.17.21"}, "devDependencies": {"lodash": "^4.0.0"}}
+        ),
+        encoding="utf-8",
+    )
+    conflicts = [f for f in scan(discover(tmp_path), Options()).findings if f.rule == "DT009"]
+    assert len(conflicts) == 1
+    assert "one manifest" in conflicts[0].message
+
+
+def test_missing_lockfile_is_per_install_root(tmp_path: Path) -> None:
+    locked = make_repo(tmp_path / "locked")
+    npm(locked, {"a": "1.0.0"})
+    lockfile(locked)
+    unlocked = make_repo(tmp_path / "unlocked")
+    npm(unlocked, {"a": "1.0.0"}, "other")
+
+    report = scan(discover(tmp_path), Options())
+    findings = [f for f in report.findings if f.rule == "DT006"]
+    assert len(findings) == 1, [f.manifest for f in findings]
+    assert findings[0].manifest == "unlocked"
+    assert "1 manifest(s)" in findings[0].message
+
+
+def test_lockfile_in_one_repository_does_not_cover_another(tmp_path: Path) -> None:
+    first = make_repo(tmp_path / "a")
+    second = make_repo(tmp_path / "b")
+    npm(first, {"x": "1.0.0"})
+    npm(second, {"y": "1.0.0"}, "b")
+    lockfile(first)
+    findings = [f for f in scan(discover(tmp_path), Options()).findings if f.rule == "DT006"]
+    assert [f.manifest for f in findings] == ["b"]
+
+
+def test_repository_lockfile_covers_a_nested_package(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    npm(repo, {"a": "1.0.0"})
+    lockfile(repo)
+    service = repo / "service"
+    service.mkdir()
+    npm(service, {"b": "1.0.0"}, "service")
+    assert [f for f in scan(discover(tmp_path), Options()).findings if f.rule == "DT006"] == []
+
+
+def test_nested_lockfile_does_not_cover_the_repository_root(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    npm(repo, {"a": "1.0.0"})
+    service = repo / "service"
+    service.mkdir()
+    npm(service, {"b": "1.0.0"}, "service")
+    lockfile(service)
+    findings = [f for f in scan(discover(tmp_path), Options()).findings if f.rule == "DT006"]
+    assert [f.manifest for f in findings] == ["repo"]
 
 
 def test_lockfile_without_integrity_is_reported(tmp_path: Path) -> None:

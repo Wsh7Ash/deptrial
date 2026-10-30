@@ -24,7 +24,15 @@ Uniqueness is enforced on slug, case-insensitive title and summary. A copied ski
 
 ## The scanner half
 
-`manifests.py` turns a directory into one `Inventory`: dependencies, lifecycle scripts, manifest paths, lockfile paths, and two counts of lockfile entries (total, and with integrity).
+`manifests.py` turns a directory into one `Inventory`: dependencies, lifecycle scripts, manifest paths, lockfile paths, two counts of lockfile entries (total, and with integrity), and the install roots those manifests belong to.
+
+### Install roots
+
+A scan target is not necessarily one project, so every manifest is assigned an **install root**: the nearest directory at or above it that contains a version-control marker or a lockfile, with the scanned tree as the fallback when no marker exists. The nearest marker wins, so a package that ships its own lockfile inside a repository is its own root.
+
+This exists because two rules are meaningless at whole-tree scope. `DT006` (no lockfile) was previously evaluated once per inventory, so a single lockfile anywhere silenced it for every other project. `DT009` (conflicting constraints) compared manifests from unrelated repositories. Both now group by root, which is the smallest unit that resolves together.
+
+The boundary is deliberately a filesystem fact rather than a configuration option: `.git` and lockfiles are things a reviewer can point at, and a tree with neither is honestly treated as one project.
 
 Every dependency carries two classifications made at parse time:
 
@@ -48,4 +56,5 @@ Ordering is deterministic: findings sort by severity descending, then rule id, t
 - No registry client: the scanner cannot tell you whether a name is registered publicly.
 - No install: nothing here runs `npm install`, so no lifecycle hook is executed by this repository.
 - No transitive resolution: only manifests are parsed.
+- No configuration of project boundaries beyond marker files; a tree with no `.git` and no lockfile is one root.
 - No vulnerability matching: this is a trust review, not a CVE feed.

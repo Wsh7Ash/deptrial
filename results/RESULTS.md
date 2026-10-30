@@ -30,11 +30,11 @@ $ PYTHONPATH=src python -m pytest -q
 ...................                                                      [100%]
 ```
 
-91 tests: 30 in `tests/test_corpus.py`, 61 in `tests/test_rules.py`, all passing.
+104 tests: 30 in `tests/test_corpus.py`, 74 in `tests/test_rules.py`, all passing.
 
 `test_corpus.py` covers 50/50 shape, unique slugs, unique case-insensitive titles, unique summaries, all 10 phases with at least 3 skills each, the per-skill floors, HTTPS-labelled references, kebab-case slugs, no duplicate steps, committed skills equal to a fresh render byte for byte, `pack.json` digests matching their files, build determinism and the 52-artifact count, the catalog listing every slug, plus the CLI surface and its exit codes. It also asserts that no skill's steps or pitfalls contain `npm publish`.
 
-`test_rules.py` covers the npm and pip binding classifiers (16 cases), the source classifier (8 cases), Levenshtein distance including a transposition, all three manifest parsers including a PEP 621 optional-dependency group, discovery (lockfile pairing, `node_modules` exclusion, missing target), and every rule with both a firing and a non-firing case where one exists: exact pins produce no `DT001`, an exact allowlist match produces no `DT005`, the hardened tree produces no findings at all, and `DT004` needs an internal prefix before it can fire.
+`test_rules.py` also covers install-root boundaries: the nearest marker wins, a nested lockfile creates its own root, two repositories are never compared, a single manifest can conflict with itself, and `DT006` fires once per unlocked root. It covers the npm and pip binding classifiers (16 cases), the source classifier (8 cases), Levenshtein distance including a transposition, all three manifest parsers including a PEP 621 optional-dependency group, discovery (lockfile pairing, `node_modules` exclusion, missing target), and every rule with both a firing and a non-firing case where one exists: exact pins produce no `DT001`, an exact allowlist match produces no `DT005`, the hardened tree produces no findings at all, and `DT004` needs an internal prefix before it can fire.
 
 ## Gate 3 — build output
 
@@ -99,6 +99,21 @@ $ PYTHONPATH=src python -m deptrial rules | tail -1
    the implementation being bent to match them.
 6. **A hardcoded finding count in a test** that depended on which options were
    passed. Replaced with an assertion computed from the report itself.
+
+## Gate 6 — install roots on this workspace
+
+The scanner was run against a 146-manifest workspace before and after the install-root
+change, from the same commit of the tree:
+
+| Rule | Before | After | Meaning |
+|---|---|---|---|
+| `DT009` | 11 | **0** | all 11 groups spanned unrelated repositories |
+| `DT006` | 0 | **132** | one lockfile anywhere had silenced the rule for every project |
+| `DT001` | 15 | 15 | unchanged |
+| `DT008` | 117 | 117 | unchanged |
+| `DT007` | 1 | 1 | unchanged |
+
+Elapsed time for the scan stayed under one second after the walk was pruned.
 
 ## What was not run
 

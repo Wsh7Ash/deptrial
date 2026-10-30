@@ -273,19 +273,32 @@ def rule_typosquat_near_miss(inventory: Inventory, options: Options) -> list[Fin
 
 
 def rule_no_lockfile(inventory: Inventory, options: Options) -> list[Finding]:
-    """DT006 — manifests without a lockfile: two installs, two dependency trees."""
-    if not inventory.manifests or inventory.lockfiles:
-        return []
-    return [
-        Finding(
-            rule="DT006",
-            severity="medium",
-            subject="lockfile",
-            manifest=", ".join(sorted(inventory.manifests)),
-            message="no lockfile accompanies the manifests, so installs are not reproducible",
-            evidence=f"{len(inventory.dependencies)} declared dependencies",
+    """DT006 — an install root whose manifests have no lockfile.
+
+    Per root, not per scan: a lockfile in one project does not make another
+    project's installs reproducible. Scanning a workspace previously produced
+    zero findings here because any single lockfile anywhere silenced the rule.
+    """
+    findings: list[Finding] = []
+    for root, manifests in inventory.unlocked_roots():
+        declared = len(inventory.dependencies_in(root))
+        shown = ", ".join(manifests[:4])
+        if len(manifests) > 4:
+            shown += f" and {len(manifests) - 4} more"
+        findings.append(
+            Finding(
+                rule="DT006",
+                severity="medium",
+                subject="lockfile",
+                manifest=root,
+                message=(
+                    f"no lockfile in this install root ({len(manifests)} manifest(s): {shown}), "
+                    "so two installs are two dependency trees"
+                ),
+                evidence=f"{declared} declared dependencies",
+            )
         )
-    ]
+    return findings
 
 
 def rule_wildcard_binding(inventory: Inventory, options: Options) -> list[Finding]:
@@ -335,16 +348,21 @@ def rule_unbounded_lower_bound(inventory: Inventory, options: Options) -> list[F
 
 
 def rule_cross_manifest_conflict(inventory: Inventory, options: Options) -> list[Finding]:
-    """DT009 — one package, two manifests, two different constraints."""
-    by_name: dict[str, list[Dependency]] = {}
+    """DT009 — one package, two constraints, inside the *same* install root.
+
+    Scope matters here: `pytest>=8` in one repository and `pytest>=8.0,<9` in
+    another are two independent decisions, not a conflict. Only manifests that
+    resolve together can disagree about a version.
+    """
+    by_key: dict[tuple[str, str], list[Dependency]] = {}
     for dependency in inventory.dependencies:
-        by_name.setdefault(_normalise(dependency.name), []).append(dependency)
+        by_key.setdefault((dependency.root, _normalise(dependency.name)), []).append(dependency)
 
     findings: list[Finding] = []
-    for name, group in sorted(by_name.items()):
+    for (root, name), group in sorted(by_key.items()):
         constraints = {d.constraint for d in group}
         manifests = {d.manifest for d in group}
-        if len(constraints) < 2 or len(manifests) < 2:
+        if len(constraints) < 2:
             continue
         ordered = sorted(f"{d.manifest}:{d.constraint}" for d in group)
         findings.append(
@@ -352,8 +370,12 @@ def rule_cross_manifest_conflict(inventory: Inventory, options: Options) -> list
                 rule="DT009",
                 severity="low",
                 subject=name,
-                manifest=", ".join(sorted(manifests)),
-                message="declared with different constraints in different manifests",
+                manifest=root or ", ".join(sorted(manifests)),
+                message=(
+                    "declared with different constraints inside one install root"
+                    if len(manifests) > 1
+                    else "declared twice with different constraints in one manifest"
+                ),
                 evidence="; ".join(ordered),
             )
         )
