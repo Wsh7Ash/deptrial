@@ -11,6 +11,7 @@ so the rules in :mod:`deptrial.rules` never have to look at raw strings.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,29 @@ except ModuleNotFoundError:  # pragma: no cover - 3.10 fallback
 
 MANIFEST_NAMES = ("package.json", "requirements.txt", "requirements-dev.txt", "pyproject.toml")
 LOCKFILE_NAMES = ("package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "uv.lock")
+
+# Directories that never contain a project's own manifests. `.git` matters most:
+# a repository of repositories is mostly object files, and walking them turns a
+# two-second scan into a four-minute one without finding anything.
+PRUNED_DIRS = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        "build",
+        "dist",
+        ".next",
+        "target",
+    }
+)
 
 SOURCE_REGISTRY = "registry"
 SOURCE_VCS = "vcs"
@@ -213,6 +237,28 @@ def parse_pyproject(path: Path, display: str | None = None) -> list[Dependency]:
     return dependencies
 
 
+def _walk_manifests(base: Path, max_depth: int) -> list[Path]:
+    """Find manifest and lockfile paths, pruning directories we never want.
+
+    ``os.walk`` is used rather than ``rglob`` because pruning has to happen
+    before descent: an unpruned walk of this repository reads 13k files inside
+    nested ``.git`` directories to find zero manifests.
+    """
+    found: list[Path] = []
+    base_depth = len(base.parts)
+    for directory, dirnames, filenames in os.walk(base):
+        current = Path(directory)
+        depth = len(current.parts) - base_depth
+        # Mutating dirnames in place is what prunes the descent.
+        dirnames[:] = sorted(name for name in dirnames if name not in PRUNED_DIRS)
+        if depth >= max_depth:
+            dirnames[:] = []
+        for filename in sorted(filenames):
+            if filename in (*MANIFEST_NAMES, *LOCKFILE_NAMES):
+                found.append(current / filename)
+    return found
+
+
 def discover(root: str | Path, max_depth: int = 4) -> Inventory:
     """Walk a tree and build one inventory of every manifest found."""
     base = Path(root)
@@ -224,15 +270,7 @@ def discover(root: str | Path, max_depth: int = 4) -> Inventory:
     if base.is_file():
         candidates = [base]
     else:
-        candidates = sorted(
-            path
-            for path in base.rglob("*")
-            if path.is_file()
-            and path.name in (*MANIFEST_NAMES, *LOCKFILE_NAMES)
-            and "node_modules" not in path.parts
-            and ".venv" not in path.parts
-            and len(path.relative_to(base).parts) <= max_depth
-        )
+        candidates = _walk_manifests(base, max_depth)
 
     for path in candidates:
         display = str(path.relative_to(base)) if base.is_dir() else path.name

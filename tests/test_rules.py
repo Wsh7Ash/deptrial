@@ -180,6 +180,24 @@ def test_discovery_skips_node_modules(tmp_path: Path) -> None:
     assert inventory.manifests == ["package.json"]
 
 
+def test_discovery_prunes_git_directories(tmp_path: Path) -> None:
+    objects = tmp_path / ".git" / "objects"
+    objects.mkdir(parents=True)
+    (objects / "package.json").write_text('{"name": "hopeless", "dependencies": {"a": "^1"}}', encoding="utf-8")
+    (tmp_path / "package.json").write_text('{"name": "root"}', encoding="utf-8")
+    inventory = discover(tmp_path)
+    assert inventory.manifests == ["package.json"]
+    assert inventory.dependencies == []
+
+
+def test_discovery_respects_max_depth(tmp_path: Path) -> None:
+    deep = tmp_path / "a" / "b" / "c" / "d"
+    deep.mkdir(parents=True)
+    (deep / "package.json").write_text('{"name": "deep"}', encoding="utf-8")
+    assert discover(tmp_path, max_depth=2).manifests == []
+    assert "a/b/c/d/package.json" in discover(tmp_path, max_depth=8).manifests
+
+
 def test_discovery_rejects_a_missing_target(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         discover(tmp_path / "nope")
